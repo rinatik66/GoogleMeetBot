@@ -1,3 +1,5 @@
+import os
+import subprocess
 import sys
 import selenium
 import requests
@@ -11,37 +13,92 @@ from enum import Enum
 import threading
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
 
 import time as t
 from utils import *
 
+recording_process = None
 
 '''Locating by xpath here is the best thing to do here, since google Meet changes selectors, classes name and all that sort of stuff for every meeting
     XPaths remaing the same, but a slight change by them would make this program fail.
     The xpath is found clicking by inspecting the element of the searched button, and finding the parent div tthat has role="button" tag
 '''
 
-MIC_XPATH = '/html/body/div[1]/c-wiz/div/div/div[8]/div[3]/div/div/div[2]/div/div[1]/div[1]/div[1]/div/div[3]/div[1]/div/div/div'
-WEBCAM_XPATH = '/html/body/div[1]/c-wiz/div/div/div[8]/div[3]/div/div/div[2]/div/div[1]/div[1]/div[1]/div/div[3]/div[2]/div/div'
-JOIN_XPATH = '/html/body/div[1]/c-wiz/div/div/div[8]/div[3]/div/div/div[2]/div/div[1]/div[2]/div/div[2]/div/div/div[1]'
-OPTION_XPATH = '/html/body/div[1]/c-wiz/div/div/div[6]/div[3]/div/div/div[2]/div/div[1]/div[1]/div[1]/div/div[4]/div'
+# Кнопка выключения микрофона
+MIC_XPATH = "//div[@role='button' and @aria-label='Выключить микрофон']"
 
-CHAT_BTN_XPATH = '/html/body/div[1]/c-wiz/div[1]/div/div[6]/div[3]/div[6]/div[3]/div/div[2]/div[3]'
-CHAT_SELECTCHAT_BTN_XPATH = '/html/body/div[1]/c-wiz/div[1]/div/div[6]/div[3]/div[3]/div/div[2]/div[2]/div[1]/div[2]'
+# Кнопка выключения камеры
+WEBCAM_XPATH = "//div[@role='button' and @aria-label='Выключить камеру']"
 
-#Using tagname for text area because xpath doesn't really work, and we're sure it's the only textarea on the webpage
+# Кнопка присоединения (ищем кнопку, в которой содержится текст "Присоединиться")
+JOIN_XPATH = "//button[.//span[contains(text(),'Присоединиться')]]"
+
+# Кнопка меню дополнительных опций ("Ещё")
+OPTION_XPATH = "//button[@aria-label='Ещё']"
+
+# Кнопка чата для начала общения со всеми участниками
+CHAT_BTN_XPATH = "//button[@aria-label='Начать чат со всеми участниками']"
+
+# (Если требуется) кнопка выбора конкретного чата – можно попробовать такой селектор,
+# но его может потребоваться доработать, если в интерфейсе несколько подобных элементов.
+CHAT_SELECTCHAT_BTN_XPATH = "//div[@data-panel-id='2']"
+
+# Текстовое поле чата – оставляем, как есть, поскольку это тег textarea
 CHAT_TEXT_XPATH = "textarea"
 
-HANG_UP_BTN_XPATH = '/html/body/div[1]/c-wiz/div[1]/div/div[8]/div[3]/div[9]/div[2]/div[2]/div'
+# Кнопка завершения встречи (отключения)
+HANG_UP_BTN_XPATH = "//button[@aria-label='Покинуть видеовстречу']"
 
-CHAT_CLOSE_BTN_XPATH = '/html/body/div[1]/c-wiz/div[1]/div/div[6]/div[3]/div[3]/div/div[2]/div[1]/div[2]/div/button'
+# Кнопка закрытия панели чата
+CHAT_CLOSE_BTN_XPATH = "//button[@aria-label='Закрыть']"
+
 
 browser = None
 
+from selenium.webdriver.firefox.service import Service
+
+def startRecording(*args, **kwargs):
+    global RECORDER_PROCESS
+    if not os.path.exists("recordings"):
+        os.makedirs("recordings")
+    filename = "recordings/meeting_recording_" + t.strftime("%Y%m%d_%H%M%S") + ".mp4"
+    # Обновлённая команда: используем индекс устройств "3:0" (экран и микрофон black hole)
+    cmd = [
+        "ffmpeg",
+        "-f", "avfoundation",
+        "-framerate", "30",
+        "-video_size", "960x480",
+        "-i", "3:0",  # поменяйте на "3:0", если хотите использовать black hole
+        "-ar", "48000",
+        "-y", filename
+    ]
+    print("Starting screen recording with command:", " ".join(cmd))
+    RECORDER_PROCESS = subprocess.Popen(cmd)
+    print("Recording started, saving to", filename)
+
+
+def stopRecording(*args, **kwargs):
+    global RECORDER_PROCESS
+    if RECORDER_PROCESS is not None:
+        RECORDER_PROCESS.terminate()
+        try:
+            RECORDER_PROCESS.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            RECORDER_PROCESS.kill()
+        print("Recording stopped.")
+        RECORDER_PROCESS = None
+
+
 def initFirefox():
     global browser
+    service = Service(executable_path=FIREFOX_DVD_DIR)
+    profile = webdriver.FirefoxProfile(FIREFOX_PROFILE)
+    options = Options()
+    options.profile = profile
+    browser = webdriver.Firefox(service=service, options=options)
 
-    browser = webdriver.Firefox(firefox_profile=webdriver.FirefoxProfile(FIREFOX_PROFILE), executable_path=FIREFOX_DVD_DIR)
 
 def joinMeeting(link):
     global browser
@@ -74,15 +131,14 @@ def writeText(by, selector, text):
 
 def sendChatMsg(text):
     global browser
-
-    #open chat menu
+    # Открыть окно чата
     clickButton(By.XPATH, CHAT_BTN_XPATH)
-    #select chat option
+    # Выбрать нужный чат (если требуется)
     clickButton(By.XPATH, CHAT_SELECTCHAT_BTN_XPATH)
-    #write msg
-    writeText(By.TAG_NAME, CHAT_BTN_XPATH, text)
+    # Записать сообщение – используем тег текстового поля
+    writeText(By.TAG_NAME, CHAT_TEXT_XPATH, text)
     t.sleep(1)
-    #close chat
+    # Закрыть окно чата
     clickButton(By.XPATH, CHAT_CLOSE_BTN_XPATH)
 
 

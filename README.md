@@ -1,36 +1,136 @@
 # GoogleMeetBot
-A bot to automatically join Google Meet meetings at the correct time
 
+**GoogleMeetBot** — это автоматизированный бот для подключения к конференциям Google Meet в заданное время. Бот использует Mozilla Firefox, Selenium и Geckodriver для управления браузером, а также модуль schedule для планирования подключения и завершения встреч.
 
-## How it works
-The bot automates a FireFox session using Python, Selenium and the Geckdriver.<br>
-It joins the programmed google meetings automatically, with microphone and webcam disabled.<br>
-It uses the **schedule** python module to automatically access and close meetings at the given time, it can only join one meeting at the time<br>
-Normally Google Accounts are not allowed to be logged in when using an automated browser, and this bot is no exception. 
-The procedure described in **Using your account** is used to bypass this protection mechanism <br>
+## Особенности
 
-## Using your account
-This login procedure is needed in order to bypass Google not allowing automated browsers to log in into accounts.<br><br>
-**Preparation:**<br>
-1. First of all install Mozilla FireFox from <https://www.mozilla.org/en-US/firefox/download/thanks/>.<br>
-2. Download and install the Geckdriver for your OS from Mozilla's GitHub repo <https://github.com/mozilla/geckodriver/releases>.<br>
-3. If you're using Linux, your package manager may have a package for that, so check that.<br>
-4. Replace **FIREFOX_DVD_DIR** in **utils.py** with the path to the GeckoDriver executable you just installed.<br>
+- Автоматическое подключение: бот заходит в Google Meet по указанной ссылке в заданное время.
+- Отключение микрофона и камеры: бот автоматически отключает микрофон и видеокамеру перед входом в конференцию.
+- Автоматическое завершение встречи: бот выходит из встречи по расписанию.
+- Планирование встреч: настройка времени начала и завершения конференций с помощью библиотеки schedule.
+- Отладка: логирование действий и возможность сохранять скриншоты для диагностики проблем.
 
-**Log in into your Google Account:**<br>
-1. Open FireFox and go to *about:profiles*<br>
-2. Click *Create a New Profile>Next* name it whatever you want then click *Finish*<br>
-3. Search for the profile you just created in the list below, copy the *Root Directory* and paste it into **FIREFOX_PROFILE** into **utils.py**<br>
-4. Now FireFox will have made the profile you just created the default one, so set the default profile back to what it was before<br>
-5. Go the the profile you just created and click *Launch profile in new browser*. This will open a new FireFox window using your profile.<br>
-6. In the new FireFox window just appeared, head over to gmail.com and log in into your Google account.<br>
-7. Once logged in, the profile is ready to be used in this bot<br>
+## Требования
 
+- Python 3.8+
+- Mozilla Firefox – установите последнюю версию браузера (https://www.mozilla.org/ru/firefox/new/)
+- Geckodriver – скачайте подходящую версию для вашей ОС с официальной страницы релизов (https://github.com/mozilla/geckodriver/releases)  
+  Примечание для Mac с M2: используйте версию geckodriver-v0.36.0-macos-aarch64.tar.gz.
+- Зависимости Python – перечислены в файле requirements.txt.
 
-## Dependencies
-All python deps are listed in **requirements.txt**, just run<br>
-    pip install -r requirements.txt
+## Установка
 
-## Add your own meetings
-To add your own  meetings into **meetings.py**, adding another <em>scheduleMeeting</em> line like the one already present. You can add as many as you want, but remember that this bot does not support joining multiple meetings at the same time
+1. Клонируйте репозиторий или скопируйте проект в нужную директорию:
 
+   git clone <URL_репозитория>  
+   cd GoogleMeetBot
+
+2. Создайте виртуальное окружение и активируйте его:
+
+   На macOS/Linux:  
+   python3 -m venv venv  
+   source venv/bin/activate
+
+   На Windows:  
+   python -m venv venv  
+   venv\Scripts\activate
+
+3. Установите зависимости:
+
+   pip install -r requirements.txt
+
+4. Скачайте и установите Geckodriver:  
+   - Скачайте подходящую версию для вашей ОС.  
+   - Распакуйте архив и переместите исполняемый файл в каталог, доступный в PATH (например, /usr/local/bin).  
+   - Проверьте права доступа:
+   
+   chmod +x /usr/local/bin/geckodriver
+
+## Настройка
+
+1. Конфигурация Firefox-профиля:  
+   - Откройте Firefox и введите в адресной строке "about:profiles".  
+   - Создайте новый профиль (если необходимо) или используйте существующий, в котором выполнен вход в Google Account.  
+   - Скопируйте путь из поля "Корневой каталог" (например, /Users/yourusername/Library/Application Support/Firefox/Profiles/xxxxxx.default-release).
+
+2. Редактирование файла utils.py:  
+   Укажите путь к Geckodriver и Firefox-профилю:
+   
+   FIREFOX_DVD_DIR = '/usr/local/bin/geckodriver'  
+   FIREFOX_PROFILE = '/Users/yourusername/Library/Application Support/Firefox/Profiles/xxxxxx.default-release'
+
+3. Настройка расписания встреч:  
+   В файле meetings.py настройте функцию scheduleMeeting для добавления нужной встречи. Пример:
+
+   def setup_schedule():
+       # "today" – для запуска каждый день, можно использовать название дня недели (monday, tuesday, etc.)
+       scheduleMeeting("today", "03:23", "03:40", "https://meet.google.com/eey-vnwi-gsy")
+   
+   Убедитесь, что указанное время соответствует системному времени вашего компьютера.
+
+## Запуск
+
+1. Запустите скрипт:
+
+   python gmeet_bot.py
+
+2. Цикл планировщика:  
+   Скрипт включает цикл, который постоянно проверяет расписание и выполняет запланированные задачи.
+
+## Отладка
+
+- Если бот не нажимает нужные кнопки (например, для отключения микрофона/камеры или присоединения), проверьте актуальные селекторы (XPath) с помощью инструмента разработчика в браузере.
+- Для диагностики можно добавить сохранение скриншотов:
+
+   browser.save_screenshot("debug.png")
+   
+- Убедитесь, что задержки между действиями достаточны для полной загрузки страницы.
+
+## Селекторы (XPath) элементов
+
+Ниже приведён пример набора селекторов, используемых в проекте:
+
+- Кнопка выключения микрофона:
+  
+  MIC_XPATH = "//div[@role='button' and @aria-label='Выключить микрофон']"
+
+- Кнопка выключения камеры:
+  
+  WEBCAM_XPATH = "//div[@role='button' and @aria-label='Выключить камеру']"
+
+- Кнопка присоединения:
+  
+  JOIN_XPATH = "//button[.//span[contains(text(),'Присоединиться')]]"
+
+- Кнопка меню дополнительных опций ("Ещё"):
+  
+  OPTION_XPATH = "//button[@aria-label='Ещё']"
+
+- Кнопка чата (начало общения со всеми участниками):
+  
+  CHAT_BTN_XPATH = "//button[@aria-label='Начать чат со всеми участниками']"
+
+- Кнопка выбора чата (если требуется):
+  
+  CHAT_SELECTCHAT_BTN_XPATH = "//div[@data-panel-id='2']"
+
+- Текстовое поле чата:
+  
+  CHAT_TEXT_XPATH = "textarea"
+
+- Кнопка завершения встречи:
+  
+  HANG_UP_BTN_XPATH = "//button[@aria-label='Покинуть видеовстречу']"
+
+- Кнопка закрытия панели чата:
+  
+  CHAT_CLOSE_BTN_XPATH = "//button[@aria-label='Закрыть']"
+
+## Примечания
+
+- Интерфейс Google Meet может меняться, поэтому периодически проверяйте актуальность селекторов.
+- Бот поддерживает одновременное подключение только к одной встрече. Для поддержки нескольких встреч требуется дополнительная доработка.
+
+## Лицензия
+
+Этот проект распространяется под лицензией MIT. Подробности смотрите в файле LICENSE.
