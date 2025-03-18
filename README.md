@@ -1,136 +1,176 @@
-# GoogleMeetBot
+# Google Meet Bot
 
-**GoogleMeetBot** — это автоматизированный бот для подключения к конференциям Google Meet в заданное время. Бот использует Mozilla Firefox, Selenium и Geckodriver для управления браузером, а также модуль schedule для планирования подключения и завершения встреч.
+**GoogleMeetBot** — это автоматизированный бот для подключения к конференциям Google Meet в заданное время с функцией записи аудио. Бот использует Mozilla Firefox для управления браузером и FFmpeg для записи аудио через BlackHole.
 
 ## Особенности
 
-- Автоматическое подключение: бот заходит в Google Meet по указанной ссылке в заданное время.
-- Отключение микрофона и камеры: бот автоматически отключает микрофон и видеокамеру перед входом в конференцию.
-- Автоматическое завершение встречи: бот выходит из встречи по расписанию.
-- Планирование встреч: настройка времени начала и завершения конференций с помощью библиотеки schedule.
-- Отладка: логирование действий и возможность сохранять скриншоты для диагностики проблем.
+- Автоматическое подключение к конференциям по расписанию
+- Запись аудио через BlackHole с увеличенной громкостью (250%)
+- Автоматическое отключение микрофона и камеры при входе
+- Сохранение записей в папку `recordings/`
+- Динамическое обновление расписания без перезапуска бота
+- Планирование встреч через CSV файл или командную строку
+- Отладка: логирование действий и скриншоты для диагностики
 
 ## Требования
 
 - Python 3.8+
-- Mozilla Firefox – установите последнюю версию браузера (https://www.mozilla.org/ru/firefox/new/)
-- Geckodriver – скачайте подходящую версию для вашей ОС с официальной страницы релизов (https://github.com/mozilla/geckodriver/releases)  
-  Примечание для Mac с M2: используйте версию geckodriver-v0.36.0-macos-aarch64.tar.gz.
-- Зависимости Python – перечислены в файле requirements.txt.
+- Mozilla Firefox – [скачать](https://www.mozilla.org/ru/firefox/new/)
+- Geckodriver – [скачать](https://github.com/mozilla/geckodriver/releases)
+  - Для Mac M1/M2: используйте версию geckodriver-v0.36.0-macos-aarch64.tar.gz
+- FFmpeg – `brew install ffmpeg` (MacOS)
+- BlackHole 2ch – [скачать](https://existential.audio/blackhole/)
+- Зависимости Python – перечислены в файле requirements.txt
 
 ## Установка
 
-1. Клонируйте репозиторий или скопируйте проект в нужную директорию:
+1. Клонируйте репозиторий:
+```bash
+git clone <URL_репозитория>
+cd GoogleMeetBot
+```
 
-   git clone <URL_репозитория>  
-   cd GoogleMeetBot
+2. Создайте и активируйте виртуальное окружение:
+```bash
+# MacOS/Linux:
+python3 -m venv venv
+source venv/bin/activate
 
-2. Создайте виртуальное окружение и активируйте его:
-
-   На macOS/Linux:  
-   python3 -m venv venv  
-   source venv/bin/activate
-
-   На Windows:  
-   python -m venv venv  
-   venv\Scripts\activate
+# Windows:
+python -m venv venv
+venv\Scripts\activate
+```
 
 3. Установите зависимости:
+```bash
+pip install -r requirements.txt
+```
 
-   pip install -r requirements.txt
+4. Установите Geckodriver:
+```bash
+# Распакуйте и переместите в /usr/local/bin
+chmod +x /usr/local/bin/geckodriver
+```
 
-4. Скачайте и установите Geckodriver:  
-   - Скачайте подходящую версию для вашей ОС.  
-   - Распакуйте архив и переместите исполняемый файл в каталог, доступный в PATH (например, /usr/local/bin).  
-   - Проверьте права доступа:
-   
-   chmod +x /usr/local/bin/geckodriver
+5. Установите и настройте BlackHole:
+- Установите BlackHole 2ch
+- Настройте системный звук на вывод через BlackHole
+- Проверьте, что Google Meet использует BlackHole как устройство вывода
 
 ## Настройка
 
-1. Конфигурация Firefox-профиля:  
-   - Откройте Firefox и введите в адресной строке "about:profiles".  
-   - Создайте новый профиль (если необходимо) или используйте существующий, в котором выполнен вход в Google Account.  
-   - Скопируйте путь из поля "Корневой каталог" (например, /Users/yourusername/Library/Application Support/Firefox/Profiles/xxxxxx.default-release).
+### Firefox Profile
 
-2. Редактирование файла utils.py:  
-   Укажите путь к Geckodriver и Firefox-профилю:
-   
-   FIREFOX_DVD_DIR = '/usr/local/bin/geckodriver'  
-   FIREFOX_PROFILE = '/Users/yourusername/Library/Application Support/Firefox/Profiles/xxxxxx.default-release'
+1. Откройте Firefox и введите `about:profiles` в адресной строке
+2. Создайте новый профиль для бота
+3. В новом профиле:
+   - Войдите в Google Account
+   - Разрешите доступ к микрофону и камере для meet.google.com
+   - Настройте автоматическое разрешение для медиа-устройств
+4. Скопируйте путь из поля "Корневой каталог"
 
-3. Настройка расписания встреч:  
-   В файле meetings.py настройте функцию scheduleMeeting для добавления нужной встречи. Пример:
+### Конфигурация проекта
 
-   def setup_schedule():
-       # "today" – для запуска каждый день, можно использовать название дня недели (monday, tuesday, etc.)
-       scheduleMeeting("today", "03:23", "03:40", "https://meet.google.com/eey-vnwi-gsy")
-   
-   Убедитесь, что указанное время соответствует системному времени вашего компьютера.
+1. Отредактируйте `utils.py`:
+```python
+FIREFOX_DVD_DIR = '/usr/local/bin/geckodriver'
+FIREFOX_PROFILE = '/Users/yourusername/Library/Application Support/Firefox/Profiles/xxxxxx.default-release'
+```
 
-## Запуск
+### Расписание встреч
 
-1. Запустите скрипт:
+Расписание хранится в `schedule.csv`:
+```csv
+Name;When;Start;End;Link
+Daily Meeting;today;10:00;10:30;https://meet.google.com/xxx-xxxx-xxx
+Weekly Sync;monday;15:00;16:00;https://meet.google.com/yyy-yyyy-yyy
+```
 
-   python gmeet_bot.py
+## Использование
 
-2. Цикл планировщика:  
-   Скрипт включает цикл, который постоянно проверяет расписание и выполняет запланированные задачи.
+### Запуск бота
+```bash
+python gmeet_bot.py
+```
 
-## Отладка
+### Управление расписанием
 
-- Если бот не нажимает нужные кнопки (например, для отключения микрофона/камеры или присоединения), проверьте актуальные селекторы (XPath) с помощью инструмента разработчика в браузере.
-- Для диагностики можно добавить сохранение скриншотов:
+1. Через CSV файл:
+   - Отредактируйте `schedule.csv` напрямую
+   - Бот автоматически подхватит изменения
 
-   browser.save_screenshot("debug.png")
-   
-- Убедитесь, что задержки между действиями достаточны для полной загрузки страницы.
+2. Через командную строку:
+```bash
+# Добавить встречу
+python manage_schedule.py add --day today --start "10:00" --end "10:30" --link "https://meet.google.com/xxx" --name "Daily"
 
-## Селекторы (XPath) элементов
+# Удалить встречу
+python manage_schedule.py remove --name "Daily"
 
-Ниже приведён пример набора селекторов, используемых в проекте:
+# Посмотреть расписание
+python manage_schedule.py list
+```
 
-- Кнопка выключения микрофона:
-  
-  MIC_XPATH = "//div[@role='button' and @aria-label='Выключить микрофон']"
+### Тестирование записи
+```bash
+# Запись 15 секунд
+python record_audio.py --duration 15
 
-- Кнопка выключения камеры:
-  
-  WEBCAM_XPATH = "//div[@role='button' and @aria-label='Выключить камеру']"
+# Запись до Ctrl+C
+python record_audio.py
+```
 
-- Кнопка присоединения:
-  
-  JOIN_XPATH = "//button[.//span[contains(text(),'Присоединиться')]]"
+## Структура проекта
 
-- Кнопка меню дополнительных опций ("Ещё"):
-  
-  OPTION_XPATH = "//button[@aria-label='Ещё']"
+- `gmeet_bot.py` - основной скрипт бота
+- `meetings.py` - управление расписанием
+- `browser_manager.py` - управление браузером
+- `record_audio.py` - запись аудио
+- `schedule.csv` - файл расписания
+- `manage_schedule.py` - управление расписанием
+- `utils.py` - общие утилиты
 
-- Кнопка чата (начало общения со всеми участниками):
-  
-  CHAT_BTN_XPATH = "//button[@aria-label='Начать чат со всеми участниками']"
+## Селекторы (XPath)
 
-- Кнопка выбора чата (если требуется):
-  
-  CHAT_SELECTCHAT_BTN_XPATH = "//div[@data-panel-id='2']"
+Актуальные селекторы для Google Meet:
+```python
+MIC_XPATH = "//div[@role='button' and @aria-label='Выключить микрофон']"
+WEBCAM_XPATH = "//div[@role='button' and @aria-label='Выключить камеру']"
+JOIN_XPATH = "//button[.//span[contains(text(),'Присоединиться')]]"
+HANG_UP_BTN_XPATH = "//button[@aria-label='Покинуть видеовстречу']"
+```
 
-- Текстовое поле чата:
-  
-  CHAT_TEXT_XPATH = "textarea"
+## Решение проблем
 
-- Кнопка завершения встречи:
-  
-  HANG_UP_BTN_XPATH = "//button[@aria-label='Покинуть видеовстречу']"
+1. Проблемы с FFmpeg:
+```bash
+brew install ffmpeg
+```
 
-- Кнопка закрытия панели чата:
-  
-  CHAT_CLOSE_BTN_XPATH = "//button[@aria-label='Закрыть']"
+2. Проблемы с записью аудио:
+- Проверьте установку BlackHole
+- Проверьте настройки звука
+- Проверьте громкость системы
+
+3. Проблемы с подключением:
+- Проверьте профиль Firefox
+- Проверьте селекторы
+- Добавьте скриншоты для отладки:
+```python
+browser.save_screenshot("debug.png")
+```
+
+4. Если файл расписания заблокирован:
+- Закройте файл в Excel
+- Дождитесь завершения текущей операции
 
 ## Примечания
 
-- Интерфейс Google Meet может меняться, поэтому периодически проверяйте актуальность селекторов.
-- Бот поддерживает одновременное подключение только к одной встрече. Для поддержки нескольких встреч требуется дополнительная доработка.
+- Интерфейс Meet может меняться - периодически проверяйте селекторы
+- Поддерживается одна встреча одновременно
+- Записи сохраняются с меткой времени
+- Громкость записи увеличена на 250%
 
 ## Лицензия
 
-Этот проект распространяется под лицензией MIT. Подробности смотрите в файле LICENSE.
+MIT License. См. файл LICENSE.
